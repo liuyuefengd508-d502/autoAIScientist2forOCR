@@ -209,10 +209,12 @@ def generate_temp_free_idea(
                     if action in tools_dict:
                         # It's a tool we have defined
                         tool = tools_dict[action]
-                        # Parse arguments
+                        # Parse arguments (tolerant of trailing junk after JSON object)
                         try:
-                            arguments_json = json.loads(arguments_text)
-                        except json.JSONDecodeError:
+                            arguments_json, _end = json.JSONDecoder().raw_decode(
+                                arguments_text.lstrip()
+                            )
+                        except (json.JSONDecodeError, ValueError):
                             raise ValueError(f"Invalid arguments JSON for {action}.")
 
                         # Use the tool
@@ -223,9 +225,11 @@ def generate_temp_free_idea(
                         except Exception as e:
                             last_tool_results = f"Error using tool {action}: {str(e)}"
                     elif action == "FinalizeIdea":
-                        # Parse arguments
+                        # Parse arguments (tolerant of trailing junk after JSON object)
                         try:
-                            arguments_json = json.loads(arguments_text)
+                            arguments_json, _end = json.JSONDecoder().raw_decode(
+                                arguments_text.lstrip()
+                            )
                             idea = arguments_json.get("idea")
                             if not idea:
                                 raise ValueError("Missing 'idea' in arguments.")
@@ -247,7 +251,13 @@ def generate_temp_free_idea(
                         f"Failed to parse LLM response. Response text:\n{response_text}"
                     )
                     traceback.print_exc()
-                    break  # Exit the loop if parsing fails
+                    # Don't abort the whole proposal on a single parse error;
+                    # let the agent retry and self-correct in the next reflection.
+                    last_tool_results = (
+                        f"Your previous response could not be parsed: {e}. "
+                        f"Make sure ACTION/ARGUMENTS lines follow the exact format "
+                        f"and that ARGUMENTS contains ONLY a single JSON object."
+                    )
 
             if idea_finalized:
                 continue  # Move to the next idea
