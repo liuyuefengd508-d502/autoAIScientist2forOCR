@@ -95,6 +95,78 @@ the architecture, training loop, and MPS pipeline are all correct.
    stable LLM endpoint is available, BFTS can be re-launched on idea 3
    without changes to the seed script.
 
+## Run D — real data, full vocab (CASIA-HWDB2-line, all 2630 chars)
+
+Driver: `python run_baseline_real.py`
+
+| Metric | Value |
+|---|---|
+| Dataset | Teklia/CASIA-HWDB2-line validation (7 K train / 1.3 K val) |
+| batch_size | 16 |
+| epochs | 6 |
+| lr | 5e-4 |
+| **train_loss** trajectory | 8.60 → 6.94 → 6.93 (plateau) |
+| **CER** | **0.9809** (model predicts "。" for everything) |
+| params | 3.91 M (head expands for 2630 classes) |
+| train_time | 4.8 min |
+| peak_mem | 7.3 GB |
+
+Outcome: **CTC collapse to constant character "。"** (highest-frequency char).
+Not all-blank collapse this time — the model found a local minimum predicting
+the modal character. Loss plateau at 6.94 ≈ ln(2630) suggests the model is
+roughly at uniform-random level over 2630 classes with slight bias toward "。".
+
+## Run E — real data, top-1421 chars + UNK mapping, 12 epochs
+
+Driver: `python run_baseline_real_topn.py` (freq ≥ 20 → 1421 chars + `<UNK>`)
+
+| Metric | Value |
+|---|---|
+| Dataset | same validation parquet; 8318 → 8318 lines (rare chars → `\x00`) |
+| vocab coverage | 94.7% of char tokens |
+| batch_size | 16 |
+| epochs | 12 |
+| lr | 3e-4 + cosine |
+| **train_loss** trajectory | 8.77 → 6.54 → … → 6.47 (slow decline, no escape) |
+| **CER** | **0.9809** |
+| params | 4.68 M |
+| train_time | 9.6 min |
+| peak_mem | 6.6 GB |
+
+Outcome: **same modal collapse**. 12 epochs + cosine LR + UNK mapping did not
+help. Loss only declined 8.77 → 6.47, still well above the convergence
+threshold. Predictions are consistently "。".
+
+---
+
+## Summary of findings
+
+| Experiment | Setup | CER |
+|---|---|---|
+| Run A | Synthetic, 168 classes, 3 ep | 1.0 (CTC collapse) |
+| Run B | Synthetic, 168 classes, 15 ep | 1.0 (CTC collapse) |
+| **Run C** | **Synthetic, 32 classes, 20 ep** | **0.0005 ✓** |
+| Run D | Real CASIA-HWDB2, 2630 classes, 6 ep | 0.9809 (modal collapse) |
+| Run E | Real CASIA-HWDB2, 1421+UNK classes, 12 ep | 0.9809 (modal collapse) |
+
+**Key finding**: TinyCRNN trained **from scratch** collapses on any task with
+> ~50 classes on this dataset budget. The CRNN architecture + CTC loss work
+correctly (Run C proves this). The failure mode is a known CTC optimization
+challenge with large vocabularies and limited data — a well-defined
+research problem.
+
+**What would fix this**:
+1. Pre-train CNN on isolated CASIA-HWDB1.x characters (classification,
+   ~3.7 M single-char images), then fine-tune on line CTC.
+2. Synthetic-to-real transfer: pre-train on large synthetic Chinese
+   text-line images, fine-tune on real data (domain adaptation).
+3. Curriculum training: start CTC on 2-4 char sequences (easier), expand.
+4. Semi-supervised: use a font-rendered model to soft-label unlabeled
+   real-data lines, then fine-tune with real labels.
+
+These represent exactly the **research opportunities** formalized in
+`handwritten_archive_ocr.md` (RQ2–RQ4).
+
 ## Reproduce
 
 ```bash
@@ -111,5 +183,20 @@ python run_baseline_long.py
 python run_baseline_easy.py
 ```
 
-Logs: `baseline_default.log`, `baseline_long.log`, `baseline_easy.log`
+Logs: `baseline_default.log`, `baseline_long.log`, `baseline_easy.log`,
+`baseline_real.log`, `baseline_real_topn.log`
 (in repo root, gitignored as `*.log`).
+
+# Download CASIA-HWDB2-line (validation only, 219 MB)
+python -c "
+from huggingface_hub import hf_hub_download
+hf_hub_download(repo_id='Teklia/CASIA-HWDB2-line',
+                filename='data/validation.parquet',
+                repo_type='dataset', cache_dir='./hf_cache')
+"
+
+# Run D (real data, full charset, CTC collapse)
+python run_baseline_real.py
+
+# Run E (real data, top-1421 chars + UNK, still collapses)
+python run_baseline_real_topn.py

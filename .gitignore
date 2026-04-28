@@ -194,3 +194,4 @@ final_papers/
 # HF
 cache/
 huggingface/
+hf_cache
