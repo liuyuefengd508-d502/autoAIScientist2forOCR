@@ -17,8 +17,9 @@ logger = logging.getLogger("ai-scientist")
 
 @backoff.on_predicate(
     wait_gen=backoff.expo,
-    max_value=60,
+    max_value=180,
     factor=1.5,
+    max_tries=6,
 )
 def backoff_create(
     create_fn: Callable, retry_exceptions: list[Exception], *args, **kwargs
@@ -26,7 +27,9 @@ def backoff_create(
     try:
         return create_fn(*args, **kwargs)
     except retry_exceptions as e:
-        logger.info(f"Backoff exception: {e}")
+        # Print to stderr at WARNING level so the actual error reason is visible
+        # (was previously silent INFO-only, hiding 502/timeout/rate-limit causes).
+        logger.warning(f"Backoff exception ({type(e).__name__}): {e}")
         return False
 
 

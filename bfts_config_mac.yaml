@@ -52,7 +52,7 @@ agent:
 
   # 实验代码生成（最关键的 LLM）
   code:
-    model: gpt-5.4         # 用代理的 gpt-5.4，替换原 Bedrock claude
+    model: gpt-5.4-mini    # 代理对 gpt-5.4 在大 prompt 下不稳定（502），mini 验证可过 9.6K 输入
     temp: 1.0
     max_tokens: 12000
 
@@ -63,7 +63,7 @@ agent:
     max_tokens: 8192
 
   vlm_feedback:
-    model: gpt-5.4         # 用主模型，代理可能不支持图像 — 见下方注释
+    model: gpt-5.4-mini    # 同上，mini 下代理不报 502
     temp: 0.5
     max_tokens: null
 
