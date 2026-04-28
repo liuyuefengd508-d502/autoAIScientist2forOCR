@@ -1,0 +1,45 @@
+# Mac (Apple Silicon) 版依赖 — 用于 ideation / writeup / 本地实验
+# 与官方 requirements.txt 的差异：
+#  - 显式使用 PyTorch 的 mac 默认 wheel（自带 MPS）
+#  - 其他纯 Python 依赖原样保留
+#  - 不包含 CUDA 专用包
+
+# PyTorch (Mac arm64, MPS-capable)
+torch
+torchvision
+torchaudio
+
+# LLM APIs
+anthropic
+backoff
+openai
+
+# Viz
+matplotlib
+pypdf
+pymupdf4llm
+seaborn
+
+# Common
+numpy
+transformers
+datasets
+tiktoken
+wandb
+tqdm
+rich
+humanize
+dataclasses-json
+funcy
+black
+genson
+shutup
+python-igraph
+coolname
+jsonschema
+omegaconf
+botocore
+boto3
+
+# 进程管理（launch_scientist_bfts.py 末尾用到）
+psutil

@@ -1,0 +1,73 @@
+# Mac (M5 Pro 24GB MPS) 版 BFTS 配置
+# 使用方式：跑 launch_scientist_bfts.py 前，把这个文件复制覆盖 bfts_config.yaml
+#   cp bfts_config.yaml bfts_config.yaml.bak
+#   cp bfts_config_mac.yaml bfts_config.yaml
+
+data_dir: "data"
+preprocess_data: False
+
+goal: null
+eval: null
+
+log_dir: logs
+workspace_dir: workspaces
+
+copy_data: True
+exp_name: run
+
+# settings for code execution
+exec:
+  timeout: 1800            # 30 分钟硬切（M5 Pro 训练慢，避免长时间挂死）
+  agent_file_name: runfile.py
+  format_tb_ipython: False
+
+generate_report: True
+
+# LLM settings for final report from journal
+report:
+  model: gpt-5.4-mini      # 省钱
+  temp: 1.0
+
+experiment:
+  num_syn_datasets: 1
+
+debug:
+  stage4: False
+
+# agent hyperparams
+agent:
+  type: parallel
+  num_workers: 1           # M5 Pro 共享内存，不建议并行
+  stages:
+    stage1_max_iters: 6    # 默认 20，砍到 6 让单 idea 在合理时间内完成
+    stage2_max_iters: 6
+    stage3_max_iters: 6
+    stage4_max_iters: 8
+  steps: 5
+  k_fold_validation: 1
+  multi_seed_eval:
+    num_seeds: 1           # 单 seed，省时间；论文阶段再补
+  expose_prediction: False
+  data_preview: False
+
+  # 实验代码生成（最关键的 LLM）
+  code:
+    model: gpt-5.4         # 用代理的 gpt-5.4，替换原 Bedrock claude
+    temp: 1.0
+    max_tokens: 12000
+
+  # 评估代码输出 / traceback
+  feedback:
+    model: gpt-5.4-mini    # 省钱
+    temp: 0.5
+    max_tokens: 8192
+
+  vlm_feedback:
+    model: gpt-5.4         # 用主模型，代理可能不支持图像 — 见下方注释
+    temp: 0.5
+    max_tokens: null
+
+  search:
+    max_debug_depth: 3     # 让 LLM 多次修复 .cuda() / MPS 不支持算子等问题
+    debug_prob: 0.7        # 默认 0.5，调高鼓励调试而非放弃
+    num_drafts: 1          # 单根节点

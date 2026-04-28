@@ -23,6 +23,13 @@ AVAILABLE_LLMS = [
     "gpt-4.1-2025-04-14",
     "gpt-4.1-mini",
     "gpt-4.1-mini-2025-04-14",
+    # Custom proxy (gmn.chuangzuoli.com) models
+    "gpt-5.2",
+    "gpt-5.3-codex",
+    "gpt-5.3-codex-spark",
+    "gpt-5.4",
+    "gpt-5.4-mini",
+    "gpt-5.5",
     "o1",
     "o1-2024-12-17",
     "o1-preview-2024-09-12",
