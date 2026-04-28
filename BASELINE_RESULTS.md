@@ -167,6 +167,56 @@ research problem.
 These represent exactly the **research opportunities** formalized in
 `handwritten_archive_ocr.md` (RQ2–RQ4).
 
+## Run F — synthetic pretraining → real fine-tune (THIS WORKS ✓)
+
+Driver: `python run_pretrain_transfer.py`
+
+**Phase 1 — isolated-char classification on 113 K synthetic images**
+
+| Metric | Value |
+|---|---|
+| vocab | 1421 chars (freq≥20) |
+| synth images | 113,680 (1421 × 80, 6 system fonts, noise) |
+| epochs | 5 |
+| lr | 5e-4 |
+| val_acc (1421-class) | **45.0%** (random baseline 0.07%) |
+| generation time | 24.8 s |
+
+**Phase 2 — CTC fine-tune on 7K real CASIA-HWDB2 lines**
+
+| Metric | Value |
+|---|---|
+| epochs | 25 |
+| lr | 5e-4 (head) / 2.5e-5 (CNN), cosine to eta_min=1e-5 |
+| CTC loss trajectory | 8.56 → 6.30 → 5.64 → 4.74 → 3.96 → 3.44 → 2.75 → 1.88 → **1.30** |
+| **CER** | **0.4925 (49.3%)** ← FIRST non-trivial result |
+| params | 4.68 M |
+| finetune_time | 18.2 min |
+| peak_mem | 11.9 GB |
+
+**Outcome: CTC collapse fully broken.** The model recognizes ~50% of characters
+correctly. Sample: `然中最可...东西内...就在最前面的战` vs gt `然中最可...东西肉...站在最前面的战线`.
+Errors are mostly visually similar characters (内/肉, 年/最, similar radicals).
+
+---
+
+## Updated Summary
+
+| Exp | Setup | CER |
+|---|---|---|
+| A | Synthetic 168-class, 3 ep | 1.0 (CTC blank) |
+| B | Synthetic 168-class, 15 ep | 1.0 (CTC blank) |
+| **C** | **Synthetic 32-class, 20 ep** | **0.0005 ✓** |
+| D | Real CASIA 2630-class, 6 ep | 0.9809 (modal "。") |
+| E | Real CASIA 1421+UNK, 12 ep cosine | 0.9809 (modal "。") |
+| F (v1) | Synth-pretrain→real fine-tune, 12 ep, lr=1e-4 | 0.9974 (all-blank) |
+| **F (v2)** | **Synth-pretrain→real fine-tune, 25 ep, lr=5e-4** | **0.4925 ✓** |
+
+**Key finding**: Synthetic-to-real transfer breaks CTC collapse.
+With only 7K real labeled lines + 113K synthetic isolated-char images,
+CER drops from 1.0 to **49.3%**. This directly validates the synthetic
+pretraining approach for low-resource Chinese handwriting OCR.
+
 ## Reproduce
 
 ```bash
